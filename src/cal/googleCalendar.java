@@ -22,6 +22,7 @@ import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import com.google.gdata.client.batch.BatchInterruptedException;
 import com.google.gdata.client.calendar.CalendarService;
@@ -85,16 +86,23 @@ public class googleCalendar extends Calendar {
 		this.gcalID = gcalID;
 		this.user = user;
 		this.password = password;
-
-		boolean again = true;
 		this.googleConnect();
 	}
 
 	/**
-	 * Main method that run de process.
+	 * Main method that run the process.
 	 */
 
 	public void proceed() {
+		System.out.println("Remove all old events (purge calendar)...");
+		try {
+			this.purge();
+		} catch (Exception e) {
+			System.err.println("Error while removing old events.\nEXCEPTION : "
+					+ e.getMessage());
+		}
+		System.out.println("End of purge.\nBegin add processing...");
+
 		ArrayList<Component> events = this.getEvents();
 		CalendarEventFeed batchRequest = new CalendarEventFeed();
 
@@ -109,7 +117,7 @@ public class googleCalendar extends Calendar {
 				batchRequest.getEntries().add(entry);
 
 				// this.service.insert(this.getPostUrl(), entry);
-				System.out.println("Added new event in the queue ("
+				System.out.println("Added new event in queue for insert ("
 						+ entry.getTitle().getPlainText() + ")");
 
 			} catch (Exception e) {
@@ -120,10 +128,32 @@ public class googleCalendar extends Calendar {
 
 		}
 
-		System.out.println("Sending calendar to gooogle calendar "
-				+ this.gcalID);
+		System.out.println("Sending batch of " + batchRequest.getEntries().size()
+				+ " instructions to google API...");
 		this.send(batchRequest);
 
+	}
+
+	private void purge() throws MalformedURLException, IOException,
+			ServiceException {
+		CalendarEventFeed feed = this.service.getFeed(this.getFeedUrl(),
+				CalendarEventFeed.class);
+		List<CalendarEventEntry> events = feed.getEntries();
+
+		System.out.println(events.size());
+
+		for (int i = 0; i < events.size(); ++i) {
+			CalendarEventEntry event = events.get(i);
+			System.out.println("Added new event in queue for delete ("
+					+ event.getTitle().getPlainText() + ")");
+
+			BatchUtils.setBatchId(event, event.getId());
+			BatchUtils.setBatchOperationType(event, BatchOperationType.DELETE);
+		}
+
+		System.out.println("Sending batch of " + feed.getEntries().size()
+				+ " instructions to google API...");
+		this.send(feed);
 	}
 
 	/**
@@ -274,7 +304,7 @@ public class googleCalendar extends Calendar {
 
 	private URL getFeedUrl() throws MalformedURLException {
 		return new URL("https://www.google.com/calendar/feeds/" + this.gcalID
-				+ "/private/full");
+				+ "/private/full?max-results=999999999");
 	}
 
 	/**

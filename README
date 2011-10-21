@@ -29,5 +29,8 @@ Requirements :
 Currently, the programme can parse and send a ics calendar to a 
 google calendar.
 
-An update method should be implemented to avoid duplication of 
+An update method should be implemented to avoid delete and insert 
 events.
+
+Implement a method that handles the connection attempts to the google 
+API.
